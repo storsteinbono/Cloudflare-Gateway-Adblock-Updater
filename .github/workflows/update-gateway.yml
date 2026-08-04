@@ -2,8 +2,8 @@ name: Cloudflare Gateway Adblock Updater
 
 on:
   schedule:
-    - cron: '0 */3 * * *'  # Runs every 3 hours
-  workflow_dispatch:     # Allows manual runs
+    - cron: "0 * */1 * *" # Runs every hour on the 1st day of every month
+  workflow_dispatch: # Allows manual runs
 
 jobs:
   update:
@@ -20,7 +20,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.14.5'
+          python-version: "3.14.5"
 
       - name: Cache pip packages
         uses: actions/cache@v5
@@ -39,6 +39,6 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CHECK_VERSIONS: 'true'
-          FRESH_START: 'false'
+          CHECK_VERSIONS: "true"
+          FRESH_START: "false"
         run: python update_gateway.py
