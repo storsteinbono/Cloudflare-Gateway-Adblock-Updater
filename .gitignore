@@ -25,6 +25,9 @@ htmlcov/
 .idea/
 .vscode/
 
+# Playwright MCP scratch output
+.playwright-mcp/
+
 # OS generated files
 .DS_Store
 Thumbs.db
