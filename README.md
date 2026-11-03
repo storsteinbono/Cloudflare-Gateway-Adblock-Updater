@@ -37,6 +37,10 @@ The Python script in this repository automates updating your Cloudflare Zero Tru
 
   Designed to run seamlessly via GitHub Actions or on your local device, making scheduled and hands-off updates easy.
 
+- **Custom allowlist**
+
+  Some Hagezi entries block legitimate services, not just trackers (e.g. `sentry.io`). The updater maintains a separate "Custom Allowlist" Gateway policy at a lower precedence than the Hagezi block policy, so listed domains are always allowed. Configure via the `ALLOWLIST_DOMAINS` environment variable (comma-separated, defaults to `sentry.io`); set it to an empty string to disable.
+
 
 # Setup Guide
 
@@ -46,6 +50,10 @@ The Python script in this repository automates updating your Cloudflare Zero Tru
 - `CLOUDFLARE_API_TOKEN` — API token with Zero Trust/Gateway permissions for the updater to read and manage Gateway lists/policies.
 
 Use the exact names above as repository secrets so workflows can reference them directly (the scripts expect those environment variable names).
+
+## Optional environment variables
+
+- `ALLOWLIST_DOMAINS` — comma-separated domains to always allow, evaluated before the Hagezi block policy (default: `sentry.io`). Set to an empty string to disable the allowlist policy entirely.
 
 ### Get the values from Cloudflare Zero Trust
 

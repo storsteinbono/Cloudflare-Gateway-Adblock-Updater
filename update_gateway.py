@@ -67,6 +67,20 @@ blocklists: List[Dict[str, str]] = [
     }
 ]
 
+# Allowlist configuration: domains that should always be allowed, evaluated
+# before (lower precedence number than) the Hagezi block policies above.
+# Some Hagezi entries (e.g. "sentry.io") block legitimate services, not just
+# trackers embedded on third-party sites. Override via ALLOWLIST_DOMAINS
+# (comma-separated); set it to an empty string to disable this policy.
+ALLOWLIST_PRIORITY = 100
+ALLOWLIST_POLICY_NAME = "Custom Allowlist"
+ALLOWLIST_LIST_NAME = "Custom_Allowlist_List_1"
+allowlist_domains = [
+    d.strip().lower()
+    for d in os.environ.get('ALLOWLIST_DOMAINS', 'sentry.io').split(',')
+    if d.strip()
+]
+
 # Version tracking functions
 def extract_version_from_description(description: str) -> Optional[str]:
     """
@@ -562,7 +576,77 @@ def update_policy_for_filter(filter_config: Dict, final_list_ids: List[str],
         except:
             return False
 
-def process_filter_async(filter_config: Dict, cached_lists: List[Dict], 
+def sync_allowlist(cached_rules: List[Dict], cached_lists: List[Dict]) -> None:
+    """Ensure a custom Allow policy exists for allowlist_domains, with a lower
+    precedence (evaluated first) than the Hagezi block policies."""
+    valid_domains = [d for d in allowlist_domains if is_valid_domain(d)]
+    invalid_domains = set(allowlist_domains) - set(valid_domains)
+    for d in invalid_domains:
+        logger.warning(f"  ⚠️ Skipping invalid allowlist domain: {d}")
+
+    if not valid_domains:
+        return
+
+    logger.info(f"{'='*60}")
+    logger.info(f"🟢 Syncing allowlist ({len(valid_domains)} domain(s)): {', '.join(valid_domains)}")
+    logger.info(f"{'='*60}")
+
+    target_items = set(valid_domains)
+    existing_list = next((lst for lst in cached_lists if lst['name'] == ALLOWLIST_LIST_NAME), None)
+
+    if existing_list:
+        list_id = existing_list['id']
+        response = api_request('GET', f"{base_url}/lists/{list_id}/items?per_page=1000")
+        data = check_api_response(response, "fetching allowlist items")
+        current_items = {item['value'] for item in (data.get('result') or [])}
+
+        to_remove = list(current_items - target_items)
+        to_add = list(target_items - current_items)
+
+        if to_remove or to_add:
+            payload = {}
+            if to_remove:
+                payload['remove'] = to_remove
+            if to_add:
+                payload['append'] = [{'value': d} for d in to_add]
+            response = api_request('PATCH', f"{base_url}/lists/{list_id}", payload)
+            check_api_response(response, "patching allowlist")
+            logger.info(f"  ♻️ Patched allowlist list: -{len(to_remove)} / +{len(to_add)}")
+        else:
+            logger.info("  ⏭️ Allowlist list already up to date")
+    else:
+        payload = {
+            "name": ALLOWLIST_LIST_NAME,
+            "type": "DOMAIN",
+            "description": "Custom domains allowed before Hagezi block policies",
+            "items": [{"value": d} for d in valid_domains]
+        }
+        response = api_request('POST', f"{base_url}/lists", payload)
+        data = check_api_response(response, "creating allowlist list")
+        list_id = data['result']['id']
+        logger.info(f"  🛠️ Created allowlist list: {ALLOWLIST_LIST_NAME}")
+
+    existing_policy = next((rule for rule in cached_rules if rule['name'] == ALLOWLIST_POLICY_NAME), None)
+    policy_payload = {
+        "action": "allow",
+        "description": f"Allow domains: {', '.join(valid_domains)}",
+        "enabled": True,
+        "filters": ["dns"],
+        "name": ALLOWLIST_POLICY_NAME,
+        "precedence": ALLOWLIST_PRIORITY,
+        "traffic": f"any(dns.domains[*] in ${list_id})"
+    }
+
+    if existing_policy:
+        response = api_request('PUT', f"{base_url}/rules/{existing_policy['id']}", policy_payload)
+        check_api_response(response, "updating allowlist policy")
+        logger.info(f"  🏆 Updated allowlist policy: {ALLOWLIST_POLICY_NAME}")
+    else:
+        response = api_request('POST', f"{base_url}/rules", policy_payload)
+        check_api_response(response, "creating allowlist policy")
+        logger.info(f"  🛠️ Created allowlist policy: {ALLOWLIST_POLICY_NAME}")
+
+def process_filter_async(filter_config: Dict, cached_lists: List[Dict],
                         cached_rules: List[Dict]) -> Dict:
     """Process a filter with diff-based updates."""
     filter_name = filter_config["name"]
@@ -904,6 +988,13 @@ if __name__ == "__main__":
     logger.info(f"\n{'='*60}")
     logger.info(f"🆙 Filters to update: {len(filters_to_update)}/{len(blocklists)}")
     logger.info(f"{'='*60}\n")
+
+    # Sync the custom allowlist every run, independent of blocklist versions
+    try:
+        cached_lists_early = get_all_paginated(f"{base_url}/lists")
+        sync_allowlist(cached_rules_early, cached_lists_early)
+    except Exception as e:
+        logger.error(f"🚫 Failed to sync allowlist: {e}", exc_info=True)
 
     if not filters_to_update:
         logger.info("🎉 All filters are up to date! No updates needed.")
