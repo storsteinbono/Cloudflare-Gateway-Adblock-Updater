@@ -77,7 +77,7 @@ ALLOWLIST_POLICY_NAME = "Custom Allowlist"
 ALLOWLIST_LIST_NAME = "Custom_Allowlist_List_1"
 allowlist_domains = [
     d.strip().lower()
-    for d in os.environ.get('ALLOWLIST_DOMAINS', 'sentry.io,sentry-cdn.com').split(',')
+    for d in os.environ.get('ALLOWLIST_DOMAINS', 'sentry.io,sentry-cdn.com,mcp.sentry.dev').split(',')
     if d.strip()
 ]
 

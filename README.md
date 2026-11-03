@@ -39,7 +39,7 @@ The Python script in this repository automates updating your Cloudflare Zero Tru
 
 - **Custom allowlist**
 
-  Some Hagezi entries block legitimate services, not just trackers (e.g. `sentry.io` and its static-asset CDN `sentry-cdn.com`). The updater maintains a separate "Custom Allowlist" Gateway policy at a lower precedence than the Hagezi block policy, so listed domains are always allowed. Configure via the `ALLOWLIST_DOMAINS` environment variable (comma-separated, defaults to `sentry.io,sentry-cdn.com`); set it to an empty string to disable.
+  Some Hagezi entries block legitimate services, not just trackers (e.g. `sentry.io` and its static-asset CDN `sentry-cdn.com`). The updater maintains a separate "Custom Allowlist" Gateway policy at a lower precedence than the Hagezi block policy, so listed domains are always allowed. Configure via the `ALLOWLIST_DOMAINS` environment variable (comma-separated, defaults to `sentry.io,sentry-cdn.com,mcp.sentry.dev`); set it to an empty string to disable.
 
 
 # Setup Guide
@@ -53,7 +53,7 @@ Use the exact names above as repository secrets so workflows can reference them 
 
 ## Optional environment variables
 
-- `ALLOWLIST_DOMAINS` — comma-separated domains to always allow, evaluated before the Hagezi block policy (default: `sentry.io,sentry-cdn.com`). Set to an empty string to disable the allowlist policy entirely.
+- `ALLOWLIST_DOMAINS` — comma-separated domains to always allow, evaluated before the Hagezi block policy (default: `sentry.io,sentry-cdn.com,mcp.sentry.dev`). Set to an empty string to disable the allowlist policy entirely.
 
 ### Get the values from Cloudflare Zero Trust
 
